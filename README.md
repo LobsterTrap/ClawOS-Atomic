@@ -1,10 +1,8 @@
-# Designing an Agentic Fedora Atomic / Universal Blue–Style Operating System Integrated with OpenClaw and OpenShell
+# ClawOS Atomic
 
-## Working name
+## Designing an Agentic Fedora Atomic / Universal Blue–Style Operating System Integrated with OpenClaw and OpenShell
 
-**ClawOS Atomic**
-
-## Revision note
+### Revision note
 
 This revision incorporates a clear separation between three responsibilities:
 
