@@ -109,7 +109,7 @@ The goal is not to replace the GUI. The goal is to make the GUI and the operatin
 
 # 2. Architecture
 
-The system should be split into eight layers.
+The system should be split into nine layers.
 
 ```text
 ┌────────────────────────────────────────────────────┐
@@ -118,6 +118,9 @@ The system should be split into eight layers.
 ├────────────────────────────────────────────────────┤
 │ OpenClaw user runtime                              │
 │ agents, sessions, memory, skills, tools, plugins   │
+├────────────────────────────────────────────────────┤
+│ Model routing and context filtering                │
+│ local/remote models, redaction, consent, routing    │
 ├────────────────────────────────────────────────────┤
 │ claw-policy-center                                 │
 │ approvals, permissions, audit, admin policy, UX    │
@@ -143,11 +146,14 @@ The core architectural separation is:
 
 ```text
 OpenClaw = agent control plane and user interaction layer
+Model routing = model choice, redaction, consent, and privacy posture
 OpenShell = sandboxed command execution substrate
 claw-portals = typed OS host capability brokers
 claw-policy-center = user/admin policy, audit, and approval UX
 Fedora Atomic / bootc = immutable, rollbackable host substrate
 ```
+
+Model routing is deliberately not the enforcement layer. It decides which model may see which context, and when consent or redaction is required. Enforcement still belongs to OpenShell, `claw-portals`, `claw-policy-center`, SELinux, PolicyKit, systemd, and the desktop portal stack.
 
 ---
 
@@ -264,6 +270,24 @@ Do **not** invent a new execution substrate when OpenShell already provides the 
 - Local or remote execution options
 - Agent-oriented sandbox lifecycle
 - OpenClaw integration through the OpenShell sandbox plugin
+
+ClawOS should define three supported OpenShell deployment modes:
+
+```text
+local-managed
+  OpenShell runs on the machine and creates local sandboxes.
+  Required for local-first and offline-friendly ClawOS Personal.
+
+remote-managed
+  OpenShell provisions remote sandboxes through an OpenShell gateway/account.
+  Useful for heavy tasks, GPU work, untrusted workloads, and long-running jobs.
+
+enterprise-managed
+  OpenShell gateways, policies, providers, logs, and network routes are centrally managed.
+  Required for fleet policy, audit export, and regulated environments.
+```
+
+The default ClawOS Personal experience must not require a remote OpenShell account to run basic sandboxed tasks. Remote OpenShell should be an upgrade path for capacity and isolation, not a hidden dependency for the core safety model.
 
 The default execution path should be:
 
@@ -465,6 +489,40 @@ OpenShell can still be used underneath when the work is genuinely execution-heav
 
 `claw-policy-center` is the user-facing and admin-facing control plane for what OpenClaw, OpenShell, skills, plugins, and portals are allowed to do.
 
+It is not merely a settings application. It must own the canonical policy model and compile decisions into the enforcement systems underneath it:
+
+```text
+claw-policy-center policy
+  -> OpenClaw tool policy
+  -> OpenShell sandbox policy
+  -> claw-portals grants
+  -> PolicyKit rules
+  -> Flatpak/xdg portal grants
+  -> model routing and redaction policy
+  -> audit labels
+```
+
+Policy decisions should use one vocabulary:
+
+```text
+subject: user, agent, skill, plugin, channel, device, admin group
+action: read, write, execute, install, send, stage, rollback, observe
+object: file scope, app, portal capability, sandbox, model, secret, network
+scope: path, app id, domain, network range, system service, data source
+lifetime: once, session, project, until revoked, admin managed
+provenance: user grant, admin policy, skill request, default profile
+risk: observe, draft, sandboxed, local modify, external, system, privileged
+undo: reversible, compensating, irreversible
+```
+
+Merge order should be explicit and boring:
+
+```text
+admin deny > user deny > emergency lockdown > allowlist > default deny
+```
+
+No skill, plugin, model provider, channel, or agent session should be able to create its own lasting authority. It can request authority, but only `claw-policy-center` can grant it, record it, display it, and revoke it.
+
 For normal users, settings become less about toggles and more about this question:
 
 > “What am I comfortable letting the agent do?”
@@ -572,6 +630,35 @@ The desktop should expose state to the agent in structured form.
 Not screenshots first. Structured state first.
 
 Likely this will be a GNOME Shell extension or a small set of extensions.
+
+Desktop context must be treated as a permissioned data source, not ambient awareness. The shell extension should expose observation levels:
+
+```text
+level 0: presence
+  active app name, window title class, system health, pending updates
+
+level 1: metadata
+  document URI, app-declared actions, notification sender, recent file handle
+
+level 2: selected content
+  selected text, selected file, selected image, clipboard item after approval
+
+level 3: pixels and accessibility tree
+  screenshot, OCR, accessibility tree, screen reader-visible content
+
+level 4: control
+  click, type, drag, app automation, remote desktop style actions
+```
+
+Defaults should be conservative:
+
+- Level 0 is available to the local user agent after login.
+- Level 1 requires app/source-specific grants.
+- Level 2 requires an explicit user gesture or a prior scoped grant.
+- Level 3 requires visible capture state, source filtering, and retention limits.
+- Level 4 requires action cards and must be auditable as automation, not observation.
+
+The agent should never receive raw screenshots, clipboard contents, browser page contents, accessibility trees, or OCR text merely because the user asked a general question. Every desktop-derived fact should carry provenance so the user can ask: "Where did you get that?"
 
 The shell should provide:
 
@@ -711,6 +798,10 @@ OpenClaw’s plugin manifest model already points in this direction. For the OS,
 - Capability manifests
 - SBOMs
 - Reproducible builds where possible
+- Provenance metadata for source, builder, maintainer, and review status
+- Revocation and quarantine for compromised skills/plugins
+- Permission diffs on update
+- Runtime policy enforcement independent of manifest claims
 - Separate trust levels:
   - Fedora curated
   - Community
@@ -720,6 +811,18 @@ OpenClaw’s plugin manifest model already points in this direction. For the OS,
 - No plugin gets `claw-portals` host capabilities merely by being installed
 
 Skills should describe not just what they know how to do, but what they are allowed to touch.
+
+The manifest is an input to policy, not the security boundary. A malicious or buggy skill must still be contained if it lies about intent, calls a delegated tool incorrectly, or receives hostile content through memory, web, email, or a repository.
+
+Marketplace rules:
+
+- Curated skills require signed releases, SBOMs, reproducible or reproducibility-audited builds, and maintainer identity.
+- Community skills can be installed, but start quarantined with no host capabilities and no network until granted.
+- Local/dev skills are visibly marked and cannot request persistent grants by default.
+- Skill updates cannot silently expand permissions; expanded capabilities require a new approval.
+- Transitive capabilities are forbidden: a skill cannot pass its grant to another skill, plugin, model, or MCP server.
+- Emergency revocation must disable a skill/plugin and all grants derived from it.
+- Audit entries must name the skill/plugin version that requested an action.
 
 ---
 
@@ -770,7 +873,7 @@ Its secrets documentation also makes a crucial point: SecretRefs help prevent cr
 
 OpenClaw’s sandbox/tool-policy/elevated model is also an important warning: sandboxing determines where tools run, tool policy determines which tools exist, and elevated mode is an exec escape hatch. Tool policy does not inspect arbitrary side effects inside `exec`.
 
-So the OS security model should be built around seven principles.
+So the OS security model should be built around eight principles.
 
 ---
 
@@ -804,7 +907,37 @@ It does not automatically get:
 
 ---
 
-## Principle 2: OpenShell for execution, portals for host mutation
+## Principle 2: One trust boundary per gateway identity
+
+ClawOS should not treat one OpenClaw gateway as a multi-tenant security boundary.
+
+The baseline rule is:
+
+```text
+one Linux user
+  -> one openclawd-user instance
+  -> one policy subject namespace
+  -> one personal memory namespace
+  -> one default OpenShell identity/profile set
+```
+
+Family, shared-machine, lab, and enterprise deployments can still exist, but they must be built from separate identities and policy scopes rather than a shared agent with per-chat illusions of isolation.
+
+Requirements:
+
+- `openclawd-system` brokers host capabilities but does not run arbitrary agent logic.
+- `openclawd-user` is per Linux user and cannot read another user's memory, grants, sandboxes, or sessions.
+- Session IDs, channel names, chat IDs, and task labels are routing metadata, not authorization boundaries.
+- A shared family machine uses separate Linux users, separate OpenClaw user services, and explicit cross-user sharing flows.
+- Enterprise mode uses admin policy above user policy, with admin deny taking precedence over user grants.
+- Remote and mobile channels must bind to a concrete user/device identity before they can request tools.
+- If the identity boundary is unclear, the system must default to observe-only or deny.
+
+This keeps the product from accidentally promising hostile-user isolation inside a component that is designed as a personal assistant control plane.
+
+---
+
+## Principle 3: OpenShell for execution, portals for host mutation
 
 The design must preserve a hard conceptual distinction:
 
@@ -842,7 +975,7 @@ agent → claw-policy-center for approval and audit
 
 ---
 
-## Principle 3: Capability tiers
+## Principle 4: Capability tiers
 
 Every action belongs to a tier.
 
@@ -858,7 +991,7 @@ Every action belongs to a tier.
 
 ---
 
-## Principle 4: Human-readable plans before risky actions
+## Principle 5: Human-readable plans before risky actions
 
 For any Tier 4+ action, the agent must produce a plan:
 
@@ -883,7 +1016,7 @@ Then the user approves.
 
 ---
 
-## Principle 5: Sandboxed execution by default
+## Principle 6: Sandboxed execution by default
 
 The default execution environments:
 
@@ -899,27 +1032,36 @@ Host exec should be exceptional, logged, revocable, and ideally unnecessary for 
 
 ---
 
-## Principle 6: Rollback everything possible
+## Principle 7: Classify reversibility before acting
 
-The OS should make rollback a core UX feature:
+The OS should make undo a core UX feature, but it must not call every undo story "rollback."
 
-- Roll back OS image
-- Roll back app install
-- Roll back Flatpak permissions
-- Roll back file edits through snapshots/versioning
-- Roll back OpenClaw config
-- Roll back OpenShell profile changes
-- Destroy or revert OpenShell sandboxes
-- Roll back skills/plugins
-- Roll back automations
-- Roll back model/provider changes
-- Roll back `claw-portals` grants
+Every proposed action should be classified before approval:
 
-Atomic desktops already provide the mental model: the base OS can move between known deployments. An Agentic OS should extend that rollback concept upward into the user experience.
+| Class | Meaning | Examples | UX requirement |
+|---|---|---|---|
+| Reversible | The previous state can be restored directly | OS deployment rollback, Flatpak uninstall, portal grant revocation, model/provider setting revert | Show "Rollback" |
+| Snapshot-backed | The system can restore from a recorded snapshot | file edits, OpenClaw config changes, OpenShell profile changes, automations | Show snapshot age and scope |
+| Compensating | The original effect remains, but a compensating action can be attempted | restore a NetworkManager setting, disable a created service, remove a launcher | Show "Undo by applying inverse change" |
+| Irreversible external | The action leaves the machine or changes outside state | sent email, posted message, payment, ticket purchase, public upload | Require final approval and say "Cannot be undone" |
+| Irreversible disclosure | Information may be copied or learned outside the trust boundary | secret exposure, remote model submission, browser cookie access, private file upload | Require strong approval and data summary |
+| Destructive without snapshot | Local data may be removed without a recovery point | bulk delete, wipe, repartition, key deletion | Block by default or require break-glass flow |
+
+Action cards must use the right word:
+
+```text
+Rollback: exact previous deployment is available
+Snapshot: restore point covers these paths/settings
+Undo: inverse action will be attempted
+Irreversible: no technical undo exists
+Blocked: no safe recovery story exists under current policy
+```
+
+Atomic desktops already provide the mental model: the base OS can move between known deployments. ClawOS should extend that concept upward, while being honest when an action is only compensatable or irreversible.
 
 ---
 
-## Principle 7: Audit must distinguish sandbox activity from host mutation
+## Principle 8: Audit must distinguish sandbox activity from host mutation
 
 The audit log should separate:
 
@@ -1234,7 +1376,22 @@ That separation is the product.
 
 Do not start with “agent controls everything.”
 
-Start with a narrow, excellent vertical slice.
+Start by proving each safety-critical path end to end before enabling broad autonomy.
+
+Even where the product scope remains broad, each capability must pass a readiness gate before it is exposed as an agent action:
+
+```text
+typed tool schema exists
+policy rule exists
+approval UX exists for the risk tier
+enforcement path exists outside the model
+audit event exists
+undo/rollback/irreversible label exists
+failure behavior is default-deny
+manual recovery path exists
+```
+
+If a capability is present but one of those gates is missing, it may appear in documentation or developer settings, but it must not be presented to normal users as an available OpenClaw action.
 
 ---
 
@@ -1638,6 +1795,23 @@ Make the system **tightly integrated but loosely trusted**.
 - Every app/action is agent-addressable.
 - The OS knows about tasks, plans, memory, sandboxes, portals, and automation.
 - The agent can operate the system coherently.
+
+## Gracefully degraded
+
+OpenClaw should be deeply integrated, but the computer must remain usable when the agent stack is unavailable.
+
+Failure behavior:
+
+- If OpenClaw is stopped, the user still gets a normal GNOME/KDE session, browser, files, settings, terminal, and accessibility tools.
+- If model providers are unavailable, existing host policy continues to enforce; no pending action becomes allowed because reasoning failed.
+- If `claw-policy-center` UI fails, policy enforcement remains default-deny for new grants and existing grants remain inspectable through CLI recovery tools.
+- If `openclawd-user` fails, `openclawd-system` still exposes recovery, rollback, and audit inspection paths, but does not run agent logic.
+- If OpenShell is unavailable, sandboxed agent execution is blocked rather than falling back to host shell.
+- If `claw-portals` are unavailable, host mutation through OpenClaw is blocked rather than rerouted through `exec`.
+- If the memory store is corrupt or unavailable, the agent runs without memory rather than rebuilding context from broad filesystem access.
+- A break-glass recovery path must exist from the login screen, boot menu, or terminal for rollback and grant revocation.
+
+This makes OpenClaw the primary interaction surface without making it the only way to operate or repair the machine.
 
 ## Loosely trusted
 
