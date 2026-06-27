@@ -29,3 +29,10 @@ for implementation detail, subsystem design, and handoff-ready technical plans.
 - Mark open questions explicitly so they can be resolved into decisions later.
 - When a subsystem becomes implementation-ready, add concrete interfaces,
   file paths, service names, policy schemas, and acceptance criteria.
+
+## Implementation Handoff
+
+Implementation-ready plans live in
+[`../implementation/`](../implementation/). Architecture docs should explain
+why ClawOS is shaped this way; implementation docs should describe what to
+build, where to put it, which interfaces to stabilize, and how to verify it.

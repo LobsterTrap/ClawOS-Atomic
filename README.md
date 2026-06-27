@@ -178,8 +178,22 @@ Detailed design work lives under [`docs/architecture/`](docs/architecture/):
 - [Design decisions](docs/architecture/design-decisions.md)
 - [Source links](docs/architecture/source-links.md)
 
+## Implementation Plans
+
+Implementation-ready subsystem plans live under
+[`docs/implementation/`](docs/implementation/):
+
+- [Implementation index](docs/implementation/README.md)
+- [MVP 0: Developer preview image](docs/implementation/mvp-0-developer-preview-image.md)
+- [MVP 1: OpenShell-first execution](docs/implementation/mvp-1-openshell-first-execution.md)
+- [MVP 2: Agent portals](docs/implementation/mvp-2-agent-portals.md)
+- [MVP 3: Policy center](docs/implementation/mvp-3-policy-center.md)
+- [MVP 4: Desktop integration](docs/implementation/mvp-4-desktop-integration.md)
+- [MVP 5: Managed workstation mode](docs/implementation/mvp-5-managed-workstation-mode.md)
+- [Cross-cutting verification](docs/implementation/cross-cutting-verification.md)
+
 ## Status
 
 This repository currently captures the product and architecture direction for
-ClawOS Atomic. The architecture docs are scaffolded so each subsystem can be
-expanded into implementation-ready designs.
+ClawOS Atomic. The architecture docs define the target system, and the
+implementation plans scaffold concrete subsystem work into MVP-sized handoffs.
