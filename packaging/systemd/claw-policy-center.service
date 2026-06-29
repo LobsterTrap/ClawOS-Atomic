@@ -1,0 +1,16 @@
+[Unit]
+Description=ClawOS policy center placeholder
+Documentation=man:claw-recovery(1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/claw/claw-policy-center-placeholder
+Restart=on-failure
+RestartSec=5s
+StateDirectory=claw-policy-center
+LogsDirectory=claw
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,7 @@
+name: claw-openshell-integration
+status: placeholder
+purpose: Reserve packaging ownership for the OpenShell gateway integration.
+installs:
+  - /usr/lib/systemd/system/claw-openshell-gateway.service
+  - /usr/libexec/claw/claw-openshell-gateway-placeholder
+  - openshell system user

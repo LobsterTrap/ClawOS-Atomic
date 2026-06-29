@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "claw-portals placeholder active; implementation starts in MVP 2." >&2
+exec sleep infinity

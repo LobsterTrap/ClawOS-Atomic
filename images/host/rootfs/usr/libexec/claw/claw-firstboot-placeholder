@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "claw-firstboot placeholder installed; MVP 0 has no first-boot flow yet."

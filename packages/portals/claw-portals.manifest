@@ -1,0 +1,7 @@
+name: claw-portals
+status: placeholder
+purpose: Reserve packaging ownership for the typed portal broker.
+installs:
+  - /usr/lib/systemd/system/claw-portals.service
+  - /usr/share/dbus-1/system-services/org.claw.Portals.service
+  - /usr/share/polkit-1/actions/org.claw.portals.policy

@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.claw.Portals
+Exec=/usr/libexec/claw/claw-portals-placeholder
+SystemdService=claw-portals.service

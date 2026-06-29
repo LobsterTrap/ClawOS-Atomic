@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'USAGE'
+Usage: claw-recovery [status|services|rollback-help]
+
+MVP 0 recovery placeholder for inspecting boot deployments and ClawOS units.
+USAGE
+}
+
+command_name="${1:-status}"
+
+case "${command_name}" in
+    status)
+        echo "ClawOS recovery placeholder"
+        if command -v bootc >/dev/null 2>&1; then
+            bootc status || true
+        elif command -v rpm-ostree >/dev/null 2>&1; then
+            rpm-ostree status || true
+        else
+            echo "No bootc or rpm-ostree status command found."
+        fi
+        ;;
+    services)
+        systemctl list-unit-files 'claw-*' || true
+        ;;
+    rollback-help)
+        cat <<'HELP'
+Typed rollback portals are planned for MVP 2.
+
+Until then, inspect deployments with:
+  claw-recovery status
+
+Then use the host's native bootc or rpm-ostree rollback workflow.
+HELP
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

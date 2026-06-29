@@ -1,0 +1,6 @@
+name: claw-desktop-integration
+status: placeholder
+purpose: Reserve packaging ownership for desktop adapter integration.
+installs:
+  - services/desktop-adapters
+  - packaging assets for future GNOME and KDE adapters

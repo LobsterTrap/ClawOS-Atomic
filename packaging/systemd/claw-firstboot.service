@@ -1,0 +1,12 @@
+[Unit]
+Description=ClawOS first-boot configuration placeholder
+Documentation=man:claw-recovery(1)
+ConditionFirstBoot=yes
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/claw/claw-firstboot-placeholder
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

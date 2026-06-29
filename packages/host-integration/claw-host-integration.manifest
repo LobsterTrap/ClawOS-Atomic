@@ -1,0 +1,7 @@
+name: claw-host-integration
+status: placeholder
+purpose: Reserve packaging ownership for core ClawOS host integration.
+installs:
+  - /usr/bin/claw-recovery
+  - /usr/share/claw/release/mvp0.md
+  - /usr/lib/tmpfiles.d/claw.conf

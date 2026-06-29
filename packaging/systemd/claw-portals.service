@@ -1,0 +1,15 @@
+[Unit]
+Description=ClawOS portal broker placeholder
+Documentation=man:claw-recovery(1)
+After=dbus-broker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/claw/claw-portals-placeholder
+Restart=on-failure
+RestartSec=5s
+StateDirectory=claw
+LogsDirectory=claw
+
+[Install]
+WantedBy=multi-user.target

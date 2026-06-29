@@ -1,0 +1,7 @@
+name: claw-policy-center
+status: placeholder
+purpose: Reserve packaging ownership for the policy center service and CLI.
+installs:
+  - /usr/lib/systemd/system/claw-policy-center.service
+  - /usr/libexec/claw/claw-policy-center-placeholder
+  - /var/lib/claw-policy-center

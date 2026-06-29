@@ -1,0 +1,28 @@
+ARG BASE_IMAGE=quay.io/fedora/fedora-bootc:latest
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="ClawOS Atomic Developer Preview"
+LABEL org.opencontainers.image.description="MVP 0 ClawOS Atomic bootc image scaffold"
+LABEL org.opencontainers.image.source="https://github.com/clawos/clawos-atomic"
+LABEL org.opencontainers.image.version="mvp0-dev"
+LABEL org.clawos.mvp="0"
+
+COPY images/host/rootfs/ /
+COPY packaging/dbus/*.service /usr/share/dbus-1/system-services/
+COPY packaging/polkit/*.policy /usr/share/polkit-1/actions/
+COPY packaging/systemd/*.service /usr/lib/systemd/system/
+COPY packaging/tmpfiles/*.conf /usr/lib/tmpfiles.d/
+COPY packages/*/*.manifest /usr/share/claw/packages/
+
+RUN set -eux; \
+    getent group openshell >/dev/null || groupadd --system openshell; \
+    getent passwd openshell >/dev/null || \
+        useradd --system --gid openshell --home-dir /var/lib/openshell \
+            --create-home --shell /usr/sbin/nologin \
+            --comment "OpenShell service user" openshell; \
+    install -d -m 0755 /usr/share/claw/packages /usr/share/claw/release; \
+    install -d -m 0755 /usr/libexec/claw; \
+    install -d -m 0755 /var/lib/claw; \
+    install -d -m 0750 -o openshell -g openshell /var/lib/openshell; \
+    install -d -m 0750 /var/lib/claw-policy-center /var/log/claw; \
+    chmod 0755 /usr/bin/claw-recovery /usr/libexec/claw/*

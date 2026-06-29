@@ -161,6 +161,15 @@ Hummingbird images should be the preferred base catalog or direct runtime
 source where appropriate, with thin ClawOS-derived images when OpenShell needs
 agent-specific integration.
 
+## Local Development
+
+Use the top-level `Makefile` for early MVP 0 image tasks:
+
+- `make image-base-inspect` inspects the configured Fedora bootc base image.
+- `make image-build` builds the local developer preview image.
+- `make image-inspect` inspects the locally built image.
+- `make verify` runs lightweight repository checks.
+
 ## Architecture Docs
 
 Detailed design work lives under [`docs/architecture/`](docs/architecture/):

@@ -1,0 +1,17 @@
+[Unit]
+Description=ClawOS OpenShell gateway placeholder
+Documentation=man:claw-recovery(1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=openshell
+Group=openshell
+ExecStart=/usr/libexec/claw/claw-openshell-gateway-placeholder
+Restart=on-failure
+RestartSec=5s
+StateDirectory=openshell
+
+[Install]
+WantedBy=multi-user.target
