@@ -201,6 +201,11 @@ Implementation-ready subsystem plans live under
 - [MVP 5: Managed workstation mode](docs/implementation/mvp-5-managed-workstation-mode.md)
 - [Cross-cutting verification](docs/implementation/cross-cutting-verification.md)
 
+## Current Status
+
+The resumable project handoff lives in
+[`docs/status/current.md`](docs/status/current.md).
+
 ## Status
 
 This repository currently captures the product and architecture direction for
